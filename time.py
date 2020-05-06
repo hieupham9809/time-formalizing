@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from datetime import *
+import functools
 import re
 
 #Constants list:
@@ -28,16 +29,16 @@ date_time_pattern = {
 	],
 	
 # single day | month | year
-	"day_single":
+	"day":
 	[
 		"ngày (\\d\\d?)"
 	],
 
-	"month_single":
+	"month":
 	[
 		"tháng (\\d\\d?)"
 	],
-	"year_single":
+	"year":
 	[
 		"năm (\\d\\d\\d?\\d?)"
 	],
@@ -57,7 +58,7 @@ date_time_pattern = {
 	],	
 
 	#single hour 
-	"hour_single":
+	"hour":
 	[
 		"(\\d\\d?) giờ",
 		"(\\d\\d?)[hg]"
@@ -189,30 +190,32 @@ class ActivityDateTimeToUnixFactory:
 		else:
 			print("ERROR: cannot extract any value")
 	def splitRawValues(self, rawDatetime):
-		date_time_pattern_joined = ""
+		date_time_pattern_joined = "(({0}).*)+".format("|".join([pattern for key in date_time_pattern for pattern in date_time_pattern[key]]))
 		for separator in separator_list:
 			# date_time_pattern = single_date_regex_list + single_time_regex_list
-			pattern_list = [pattern for key in date_time_pattern for pattern in date_time_pattern[key]]
+			
 
-			for pattern in pattern_list:
+			
 
-				date_time_pattern_joined = "({0})".format(pattern)
-				print(date_time_pattern_joined)
-				full_pattern = separator.format(date_time_pattern_joined, date_time_pattern_joined)
-				print(full_pattern)
-				separator_search_result = re.findall(full_pattern, rawDatetime, re.IGNORECASE)
-				print(separator_search_result)
-				if len(separator_search_result) > 0:
-					# print(separator_search_result[0][0])
-					# print(separator_search_result[0][3])
-					return [separator_search_result[0][0], separator_search_result[0][3]]
-				print("({0})".format(date_time_pattern_joined))
-				single_search_result = re.findall("({0})".format(date_time_pattern_joined), rawDatetime, re.IGNORECASE)
-				print(single_search_result)
-				if len(single_search_result) > 0:
-					return [single_search_result[0][0]]
-				
-		return []
+			
+			# print(date_time_pattern_joined)
+			full_pattern = separator.format(date_time_pattern_joined, date_time_pattern_joined)
+			# print(full_pattern)
+			separator_search_result = re.findall(full_pattern, rawDatetime, re.IGNORECASE)
+			# print(separator_search_result)
+			if len(separator_search_result) > 0:
+				secondIdx = functools.reduce(lambda x,y: x + y, list(map(lambda x: len(x[0].split("_")) * len(x[1]), date_time_pattern.items())))
+				# print(separator_search_result[0][0])
+				# print(separator_search_result[0][secondIdx + 3])
+				return [separator_search_result[0][0], separator_search_result[0][secondIdx + 3]]
+			# print("({0})".format(date_time_pattern_joined))
+		single_search_result = re.findall("({0})".format(date_time_pattern_joined), rawDatetime, re.IGNORECASE)
+		# print(single_search_result)
+		if len(single_search_result) > 0:
+			return [single_search_result[0][0]]
+		else:
+			return []		
+		
 
 		
 
@@ -230,10 +233,13 @@ class ActivityDateTimeToUnixFactory:
 					
 	def test_splitRawValues(self, inputDict):
 		for index, value in enumerate(inputDict):
-			if ";".join(self.splitRawValues(inputDict[index]["rawDatetime"])) == inputDict[index]["expectedOutput"]:
+			output = ";".join(self.splitRawValues(inputDict[index]["rawDatetime"]))
+			if output == inputDict[index]["expectedOutput"]:
 				print("test case {0}: PASS".format(index))
 			else:
-				print("test case {0}: FAIL".format(index))			
+				print("test case {0}: FAIL".format(index))	
+				print("rawDatetime: {0}\n expectedOutput: {1}\n currentOutput: {2}".format(inputDict[index]["rawDatetime"],
+					inputDict[index]["expectedOutput"], output))		
 
 	def test_processSingleDatetimeInput(self, inputDict):
 		for index, value in enumerate(inputDict):
@@ -348,7 +354,7 @@ class ActivityDateTimeToUnixFactory:
 		inputDatetime = datetime
 
 		# for year
-		for pattern in date_time_pattern["year_single"]:
+		for pattern in date_time_pattern["year"]:
 			year_pattern = "({0})".format(pattern)
 			year_result = re.findall(year_pattern, inputDatetime, re.IGNORECASE)
 			# print(date_full_result)
@@ -360,7 +366,7 @@ class ActivityDateTimeToUnixFactory:
 				break
 
 		# for month
-		for pattern in date_time_pattern["month_single"]:
+		for pattern in date_time_pattern["month"]:
 			month_pattern = "({0})".format(pattern)
 			month_result = re.findall(month_pattern, inputDatetime, re.IGNORECASE)
 			
@@ -371,7 +377,7 @@ class ActivityDateTimeToUnixFactory:
 
 				break
 		# for day
-		for pattern in date_time_pattern["day_single"]:
+		for pattern in date_time_pattern["day"]:
 			day_pattern = "({0})".format(pattern)
 			day_result = re.findall(day_pattern, inputDatetime, re.IGNORECASE)
 			
@@ -383,7 +389,7 @@ class ActivityDateTimeToUnixFactory:
 				break
 		# for hour
 		
-		for pattern in date_time_pattern["hour_single"]:
+		for pattern in date_time_pattern["hour"]:
 			hour_pattern = "({0})".format(pattern)
 			hour_result = re.findall(hour_pattern, inputDatetime, re.IGNORECASE)
 			# print(time_full_result)
@@ -399,16 +405,16 @@ class ActivityDateTimeToUnixFactory:
 
 factory = ActivityDateTimeToUnixFactory()
 
-factory.test_splitRawValues(
-		[
-			{"rawDatetime":"từ 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019;16h ngày 25/12/2019"}
-			# {"rawDatetime":"vào lúc 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019;16h ngày 25/12/2019"},
-			# {"rawDatetime":"vào lúc 9h30-10h30 ngày 24/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019"},
-			# {"rawDatetime":"thời gian dự thi: vào lúc 9h30-10h30 ngày 24/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019"},
-			# {"rawDatetime":"thời gian dự thi: vào lúc 9g30 ngày 24/12/2019", "expectedOutput":"9g30 ngày 24/12/2019"}
+# factory.test_splitRawValues(
+# 		[
+# 			{"rawDatetime":"từ 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019;16h ngày 25/12/2019"}
+# 			,{"rawDatetime":"vào lúc 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019;16h ngày 25/12/2019"}
+# 			,{"rawDatetime":"vào lúc 9h30-10h30 ngày 24/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019"}
+# 			,{"rawDatetime":"thời gian dự thi: vào lúc 9h30-10h30 ngày 24/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019"}
+# 			,{"rawDatetime":"thời gian dự thi: vào lúc 9g30 ngày 24/12/2019", "expectedOutput":"9g30 ngày 24/12/2019"}
 
-		]
-	)
+# 		]
+# 	)
 
 
 # factory.test_processSingleDatetimeInput(
@@ -421,12 +427,12 @@ factory.test_splitRawValues(
 
 # 	])
 
-# factory.test_processRawDatetimeInput(
-# 	[
-# 			{"rawDatetime":"từ 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"24/12/2019 9:30:0;25/12/2019 16:0:0"},
-# 			{"rawDatetime":"thời gian dự thi: vào lúc 9g30 ngày 24/12/2019", "expectedOutput":"24/12/2019 9:30:0"}
+factory.test_processRawDatetimeInput(
+	[
+			{"rawDatetime":"từ 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"24/12/2019 9:30:0;25/12/2019 16:0:0"},
+			{"rawDatetime":"thời gian dự thi: vào lúc 9g30 ngày 24/12/2019", "expectedOutput":"24/12/2019 9:30:0"}
 
 
-# 	])
+	])
 
 
