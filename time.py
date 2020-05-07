@@ -70,12 +70,29 @@ date_time_pattern = {
 
 
 separator_list = [
-	"từ ({0}) đến ({1})",
-	"({0}) đến ({1})",
-	"({0}) cho tới ({1})"
+# 1st priority
+	
+
+	"bắt đầu.*?({0}).*?kết thúc.*?({1})",
+	"khởi đầu.*?({0}).*?kết thúc.*?({1})",
+# 2nd priority
+	"sáng.*?({0}).*?chiều.*?({1})",
+	"sáng.*?({0}).*?trưa.*?({1})",
+	"sáng.*?({0}).*?tối.*?({1})",
+	"trưa.*?({0}).*?chiều.*?({1})",
+	"trưa.*?({0}).*?tối.*?({1})",
+
+	"từ.*?({0}).*?đến.*?({1})",
+	"từ.*?({0}).*?tới.*?({1})",
+# 3rd priority
+	# "từ ("
+	"({0}).*?đến.*?({1})",
+	"({0}).*?cho tới.*?({1})",
+	"từ.*?({0}).*?-.*?({1})"
+
 ]
 class ActivityDateTime:
-	def __init__(self, day=0, month=0, year=0, hour=0, minute=0, second=0):
+	def __init__(self, day=int(datetime.today().day), month=int(datetime.today().month), year=int(datetime.today().year), hour=0, minute=0, second=0):
 		self.day = day
 		self.month = month
 		self.year = year
@@ -98,7 +115,7 @@ class ActivityDateTime:
 		dt = datetime(year=self.year, month=self.month, day=self.day, hour=self.hour, minute=self.minute, second=self.second)
 		return int(dt.replace(tzinfo=timezone.utc).timestamp())
 	def validAndSetDay(self, dayString):
-		if self.day != 0:
+		if self.day != int(datetime.today().day):
 			self.others["day"].append(dayString)
 			# print("\"{}\" archived".format(dayString))
 			return
@@ -108,7 +125,7 @@ class ActivityDateTime:
 		else:
 			print(">>>>>>>>>>>ERR: invalid day!")
 	def validAndSetMonth(self, monthString):
-		if self.month != 0:
+		if self.month != int(datetime.today().month):
 			self.others["month"].append(monthString)
 			# print("\"{}\" archived".format(monthString))
 			return
@@ -118,7 +135,7 @@ class ActivityDateTime:
 		else:
 			print(">>>>>>>>>>>ERR: invalid month")
 	def validAndSetYear(self, yearString):
-		if self.year != 0:
+		if self.year != int(datetime.today().year):
 			self.others["year"].append(yearString)
 			# print("\"{}\" archived".format(yearString))
 			return
@@ -160,17 +177,23 @@ class ActivityDateTime:
 
 class ActivityDateTimeToUnixFactory:
 	def test_processRawDatetimeInput(self, inputDict):
+		passnum = 0
+		failnum = 0
 		for index, value in enumerate(inputDict):
 			datetimeObjects = self.processRawDatetimeInput(inputDict[index]["rawDatetime"])
 			output = ";".join([datetimeObject.extractAllValue() for datetimeObject in datetimeObjects])
 			if output == inputDict[index]["expectedOutput"]:
 				print("test case {0}: PASS".format(index))
+				passnum += 1
 				# print("utc: {}".format(datetimeObject.convertToUnix()))
 
 			else:
+				failnum += 1
 				print("test case {0}: FAIL".format(index))
 				print("rawDatetime: {0}\n expectedOutput: {1}\n currentOutput: {2}".format(inputDict[index]["rawDatetime"],
 					inputDict[index]["expectedOutput"], output))
+		print("PASSED: {0}/{1}".format(passnum, passnum + failnum))
+		
 	def processRawDatetimeInput(self, rawDatetime):
 		rawValueSplitted = self.splitRawValues(rawDatetime)
 		if len(rawValueSplitted) > 1:
@@ -193,17 +216,14 @@ class ActivityDateTimeToUnixFactory:
 		date_time_pattern_joined = "(({0}).*)+".format("|".join([pattern for key in date_time_pattern for pattern in date_time_pattern[key]]))
 		for separator in separator_list:
 			# date_time_pattern = single_date_regex_list + single_time_regex_list
-			
 
-			
-
-			
 			# print(date_time_pattern_joined)
 			full_pattern = separator.format(date_time_pattern_joined, date_time_pattern_joined)
-			# print(full_pattern)
 			separator_search_result = re.findall(full_pattern, rawDatetime, re.IGNORECASE)
 			# print(separator_search_result)
 			if len(separator_search_result) > 0:
+				# print(full_pattern)
+
 				secondIdx = functools.reduce(lambda x,y: x + y, list(map(lambda x: len(x[0].split("_")) * len(x[1]), date_time_pattern.items())))
 				# print(separator_search_result[0][0])
 				# print(separator_search_result[0][secondIdx + 3])
@@ -212,6 +232,7 @@ class ActivityDateTimeToUnixFactory:
 		single_search_result = re.findall("({0})".format(date_time_pattern_joined), rawDatetime, re.IGNORECASE)
 		# print(single_search_result)
 		if len(single_search_result) > 0:
+			print("SINGLE DETECTED")
 			return [single_search_result[0][0]]
 		else:
 			return []		
@@ -232,27 +253,38 @@ class ActivityDateTimeToUnixFactory:
 			# 	for time_pattern in single_time_regex_list:
 					
 	def test_splitRawValues(self, inputDict):
+		passnum = 0
+		failnum = 0
 		for index, value in enumerate(inputDict):
 			output = ";".join(self.splitRawValues(inputDict[index]["rawDatetime"]))
+			
 			if output == inputDict[index]["expectedOutput"]:
 				print("test case {0}: PASS".format(index))
+				passnum += 1
 			else:
+				failnum += 1
 				print("test case {0}: FAIL".format(index))	
 				print("rawDatetime: {0}\n expectedOutput: {1}\n currentOutput: {2}".format(inputDict[index]["rawDatetime"],
 					inputDict[index]["expectedOutput"], output))		
-
+		print("PASSED: {0}/{1}".format(passnum, passnum + failnum))
 	def test_processSingleDatetimeInput(self, inputDict):
+		passnum = 0
+		failnum = 0
 		for index, value in enumerate(inputDict):
 			datetimeObject = self.processSingleDatetimeInput(inputDict[index]["rawDatetime"])
 			output = datetimeObject.extractAllValue()
 			if output == inputDict[index]["expectedOutput"]:
+				passnum += 1
 				print("test case {0}: PASS".format(index))
 				print("utc: {}".format(datetimeObject.convertToUnix()))
 
 			else:
+				failnum += 1
 				print("test case {0}: FAIL".format(index))
 				print("rawDatetime: {0}\n expectedOutput: {1}\n currentOutput: {2}".format(inputDict[index]["rawDatetime"],
 					inputDict[index]["expectedOutput"], output))
+		print("PASSED: {0}/{1}".format(passnum, passnum + failnum))
+
 	def processSingleDatetimeInput(self, datetime):
 		activityDateTime = ActivityDateTime()
 		
@@ -407,11 +439,22 @@ factory = ActivityDateTimeToUnixFactory()
 
 # factory.test_splitRawValues(
 # 		[
-# 			{"rawDatetime":"từ 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019;16h ngày 25/12/2019"}
-# 			,{"rawDatetime":"vào lúc 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019;16h ngày 25/12/2019"}
+# 			{"rawDatetime":"từ 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019 ;16h ngày 25/12/2019"}
+# 			,{"rawDatetime":"từ 9h30-10h30 ngày 24/12/2019 - 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019 ;16h ngày 25/12/2019"}
+# 			,{"rawDatetime":"từ 9h30-10h30 ngày 24/12/2019-16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019;16h ngày 25/12/2019"}
+# 			,{"rawDatetime":"từ khung giờ 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019 ;16h ngày 25/12/2019"}
+# 			,{"rawDatetime":"từ ngày 24/12/2019 khung giờ 9h30-10h30 đến 16h ngày 25/12/2019", "expectedOutput":"ngày 24/12/2019 khung giờ 9h30-10h30 ;16h ngày 25/12/2019"}
+# 			,{"rawDatetime":"từ thứ năm lúc 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019 ;16h ngày 25/12/2019"}
+# 			,{"rawDatetime":"từ một ngày thứ năm lúc 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019 ;16h ngày 25/12/2019"}
+# 			,{"rawDatetime":"vào lúc 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019 ;16h ngày 25/12/2019"}
 # 			,{"rawDatetime":"vào lúc 9h30-10h30 ngày 24/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019"}
 # 			,{"rawDatetime":"thời gian dự thi: vào lúc 9h30-10h30 ngày 24/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019"}
 # 			,{"rawDatetime":"thời gian dự thi: vào lúc 9g30 ngày 24/12/2019", "expectedOutput":"9g30 ngày 24/12/2019"}
+# 			,{"rawDatetime":"thời gian: buổi sáng 9h30-10h30 ngày 24/12/2019, buổi chiều: 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019, buổi ;16h ngày 25/12/2019"}
+# 			,{"rawDatetime":"thời gian: buổi sáng thứ năm 9h30-10h30 ngày 24/12/2019, buổi chiều: 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019, buổi ;16h ngày 25/12/2019"}
+# 			,{"rawDatetime":"thời gian: buổi sáng từ 9h30-10h30 ngày 24/12/2019, buổi chiều: 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019, buổi ;16h ngày 25/12/2019"}
+# 			,{"rawDatetime":"thời gian: sáng từ 9h30-10h30 ngày 24/12/2019, buổi chiều: 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019, buổi ;16h ngày 25/12/2019"}
+# 			,{"rawDatetime":"thời gian: bắt đầu từ 9h30-10h30 ngày 24/12/2019 và sau đó kết thúc vào 16h ngày 25/12/2019", "expectedOutput":"9h30-10h30 ngày 24/12/2019 và sau đó ;16h ngày 25/12/2019"}
 
 # 		]
 # 	)
@@ -429,8 +472,12 @@ factory = ActivityDateTimeToUnixFactory()
 
 factory.test_processRawDatetimeInput(
 	[
-			{"rawDatetime":"từ 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"24/12/2019 9:30:0;25/12/2019 16:0:0"},
-			{"rawDatetime":"thời gian dự thi: vào lúc 9g30 ngày 24/12/2019", "expectedOutput":"24/12/2019 9:30:0"}
+			{"rawDatetime":"từ 9h30-10h30 ngày 24/12/2019 đến 16h ngày 25/12/2019", "expectedOutput":"24/12/2019 9:30:0;25/12/2019 16:0:0"}
+			,{"rawDatetime":"thời gian dự thi: vào lúc 9g30 ngày 24/12/2019", "expectedOutput":"24/12/2019 9:30:0"}
+			,{"rawDatetime":"thời gian: buổi sáng 9h30-10h30 ngày 24/12/2019, buổi chiều: 16h ngày 25/12/2019", "expectedOutput":"24/12/2019 9:30:0;25/12/2019 16:0:0"}
+			,{"rawDatetime":"thời gian: sáng từ 9h30-10h30 ngày 24/12/2019, buổi chiều: 16h ngày 25/12/2019", "expectedOutput":"24/12/2019 9:30:0;25/12/2019 16:0:0"}
+			,{"rawDatetime":"thời gian: bắt đầu từ 9h30-10h30 ngày 24/12/2019 và sau đó kết thúc vào 16h ngày 25/12/2019", "expectedOutput":"24/12/2019 9:30:0;25/12/2019 16:0:0"}
+			,{"rawDatetime":"thời gian: 9h sáng 15/01", "expectedOutput":"15/1/2020 9:0:0"}
 
 
 	])
