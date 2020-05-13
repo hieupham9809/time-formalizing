@@ -164,7 +164,7 @@ advance_time_range = {
 		"middle": [20, 11, 15],
 		"end": {
 			"1": [31, 21, 26],"một": [31, 21, 26],"giêng": [31, 21, 26],
-			"2": [28, 21, 24],"hai": [28, 21, 24],
+			"2": [monthrange(int(datetime.today().year),2)[1], 21, 24],"hai": [monthrange(int(datetime.today().year),2)[1], 21, 24],
 			"3": [31, 21, 26],"ba": [31, 21, 26],
 			"4": [30, 21, 25],"bốn": [30, 21, 25],"tư": [30, 21, 25],
 			"5": [31, 21, 26],"năm": [31, 21, 26],
@@ -757,7 +757,7 @@ factory.test_catchAdvancePattern(
 			,{"rawDatetime":"thời gian vào cuối tháng tới", "boundIdx": 0, "expectedOutput":"30/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
 			,{"rawDatetime":"thời gian vào cuối tháng tới", "boundIdx": 1, "expectedOutput":"21/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
 			,{"rawDatetime":"thời gian vào cuối tháng tới", "boundIdx": 2, "expectedOutput":"25/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
-			,{"rawDatetime":"thời gian vào cuối tháng 2", "boundIdx": 0, "expectedOutput":"28/2/{0} 0:0:0".format(datetime.today().year)}
+			,{"rawDatetime":"thời gian vào cuối tháng 2", "boundIdx": 0, "expectedOutput":"29/2/{0} 0:0:0".format(datetime.today().year)}
 			,{"rawDatetime":"thời gian vào đầu tháng tới", "boundIdx": 0, "expectedOutput":"10/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
 			,{"rawDatetime":"thời gian vào đầu tháng tư", "boundIdx": 0, "expectedOutput":"10/4/{0} 0:0:0".format(datetime.today().year)}
 			,{"rawDatetime":"thời gian vào giữa tháng chạp", "boundIdx": 0, "expectedOutput":"20/12/{0} 0:0:0".format(datetime.today().year)}
