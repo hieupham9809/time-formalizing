@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from datetime import *
+from calendar import monthrange
 import functools
 import re
 
@@ -90,6 +91,8 @@ advance_time = {
 	"end_of_previous_month":["cuối tháng trước", "cuối tháng vừa", "cuối tháng qua"],
 	"end_of_previous_year":["cuối năm trước", "cuối năm vừa", "cuối năm ngoái", "cuối năm qua"],
 	"end_of_previous_week":["cuối tuần trước", "cuối tuần vừa", "cuối tuần qua"],
+	"end_of_month_number" : ["cuối tháng (\\d\\d?)", "cuối tháng (một|giêng|hai|ba|tư|bốn|năm|sáu|bảy|tám|chín|mười|mười một|mười hai|chạp)"],
+	"end_of_year_number": ["cuối năm (\\d\\d\\d\\d)"],
 	"end_of_week": ["cuối tuần"],
 	"end_of_month": ["cuối tháng"],
 	"end_of_year": ["cuối năm"],
@@ -100,6 +103,8 @@ advance_time = {
 	"begin_of_previous_month": ["đầu tháng trước", "đầu tháng vừa", "đầu tháng qua"],
 	"begin_of_previous_year": ["đầu năm trước", "đầu năm vừa", "đầu năm ngoái", "đầu năm qua"],
 	"begin_of_previous_week": ["đầu tuần trước", "đầu tuần vừa", "đầu tuần qua"],
+	"begin_of_month_number" : ["đầu tháng (\\d\\d?)", "đầu tháng (một|giêng|hai|ba|tư|bốn|năm|sáu|bảy|tám|chín|mười|mười một|mười hai|chạp)"],
+	"begin_of_year_number": ["đầu năm (\\d\\d\\d\\d)"],
 	"begin_of_week": ["đầu tuần"],
 	"begin_of_month": ["đầu tháng"],
 	"begin_of_year": ["đầu năm"],
@@ -110,6 +115,8 @@ advance_time = {
 	"middle_of_previous_month": ["giữa tháng trước", "giữa tháng vừa", "giữa tháng qua"],
 	"middle_of_previous_year": ["giữa năm trước", "giữa năm vừa", "giữa năm ngoái", "giữa năm qua"],
 	"middle_of_previous_week": ["giữa tuần trước", "giữa tuần vừa", "giữa tuần qua"],
+	"middle_of_month_number" : ["giữa tháng (\\d\\d?)", "giữa tháng (một|giêng|hai|ba|tư|bốn|năm|sáu|bảy|tám|chín|mười|mười một|mười hai|chạp)"],
+	"middle_of_year_number": ["giữa năm (\\d\\d\\d\\d)"],
 	"middle_of_week": ["giữa tuần"],
 	"middle_of_month": ["giữa tháng"],
 	"middle_of_year": ["giữa năm"],
@@ -122,6 +129,20 @@ advance_time = {
 	"number_next_day": ["(\\d\\d?) ngày nữa", "(\\d\\d?) ngày tới", "(\\d\\d?) ngày sắp tới", "(\\d\\d?) ngày sau"],
 	"number_previous_day":["(\\d\\d?) ngày trước"]
 
+}
+month_mapping = {
+	"1":"1", "một":"1","giêng":"1",
+	"2":"2", "hai":"2",
+	"3":"3", "ba":"3",
+	"4":"4", "bốn":"4", "tư":"4",
+	"5":"5", "năm":"5",
+	"6":"6", "sáu":"6",
+	"7":"7", "bảy":"7",
+	"8":"8", "tám":"8",
+	"9":"9", "chín":"9",
+	"10":"10", "mười":"10",
+	"11":"11", "mười một":"11",
+	"12":"12", "mười hai":"12", "chạp":"12"
 }
 
 for day in atomic["head"]:
@@ -141,7 +162,20 @@ advance_time_range = {
 	"month":{
 		"begin": [10, 1, 5],
 		"middle": [20, 11, 15],
-		"end": [28, 21, 25]
+		"end": {
+			"1": [31, 21, 26],"một": [31, 21, 26],"giêng": [31, 21, 26],
+			"2": [28, 21, 24],"hai": [28, 21, 24],
+			"3": [31, 21, 26],"ba": [31, 21, 26],
+			"4": [30, 21, 25],"bốn": [30, 21, 25],"tư": [30, 21, 25],
+			"5": [31, 21, 26],"năm": [31, 21, 26],
+			"6": [30, 21, 25],"sáu": [30, 21, 25],
+			"7": [31, 21, 26],"bảy": [31, 21, 26],
+			"8": [31, 21, 26],"tám": [31, 21, 26],
+			"9": [30, 21, 25],"chín": [30, 21, 25],
+			"10": [31, 21, 26],"mười": [31, 21, 26],
+			"11": [30, 21, 25],"mười một": [30, 21, 25],
+			"12": [31, 21, 26],"mười hai": [31, 21, 26],"chạp": [31, 21, 26]
+		}
 	},
 	"year": {
 		"begin": [4, 1, 2],
@@ -475,14 +509,21 @@ class ActivityDateTimeToUnixFactory:
 								activityDateTime.validAndSetMonth(currentMonth - 1) 
 							else: 
 								activityDateTime.validAndSetMonth(12)
-							
+						elif "number" in keyNameList and advance_result[0] in month_mapping.keys():
+							activityDateTime.validAndSetMonth(month_mapping[advance_result[0]])	
 						
-						activityDateTime.validAndSetDay(advance_time_range["month"][keyNameList[0]][boundIdx])
+						if keyNameList[0] == "end":
+							activityDateTime.validAndSetDay(advance_time_range["month"][keyNameList[0]][str(activityDateTime.month)][boundIdx])	
+						else:
+							activityDateTime.validAndSetDay(advance_time_range["month"][keyNameList[0]][boundIdx])
 					elif "year" in keyNameList:
 						if "next" in keyNameList:
 							activityDateTime.validAndSetYear(currentYear + 1)
 						elif "previous" in keyNameList:
 							activityDateTime.validAndSetYear(currentYear - 1)
+						elif "number" in keyNameList:
+							activityDateTime.validAndSetYear(advance_result[0])
+
 
 						activityDateTime.validAndSetMonth(advance_time_range["year"][keyNameList[0]][boundIdx])
 
@@ -712,12 +753,17 @@ factory = ActivityDateTimeToUnixFactory()
 
 factory.test_catchAdvancePattern(
 	[
-			{"rawDatetime":"thời gian vào cuối tháng này", "boundIdx": 0, "expectedOutput":"28/{0}/{1} 0:0:0".format(datetime.today().month, datetime.today().year)}
-			,{"rawDatetime":"thời gian vào cuối tháng tới", "boundIdx": 0, "expectedOutput":"28/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
+			{"rawDatetime":"thời gian vào cuối tháng này", "boundIdx": 0, "expectedOutput":"31/{0}/{1} 0:0:0".format(datetime.today().month, datetime.today().year)}
+			,{"rawDatetime":"thời gian vào cuối tháng tới", "boundIdx": 0, "expectedOutput":"30/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
 			,{"rawDatetime":"thời gian vào cuối tháng tới", "boundIdx": 1, "expectedOutput":"21/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
 			,{"rawDatetime":"thời gian vào cuối tháng tới", "boundIdx": 2, "expectedOutput":"25/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
-			,{"rawDatetime":"thời gian vào cuối tháng trước", "boundIdx": 0, "expectedOutput":"28/{0}/{1} 0:0:0".format(int(datetime.today().month) - 1, datetime.today().year)}
-			,{"rawDatetime":"thời gian vào cuối tháng vừa qua", "boundIdx": 0, "expectedOutput":"28/{0}/{1} 0:0:0".format(int(datetime.today().month) - 1, datetime.today().year)}
+			,{"rawDatetime":"thời gian vào cuối tháng 2", "boundIdx": 0, "expectedOutput":"28/2/{0} 0:0:0".format(datetime.today().year)}
+			,{"rawDatetime":"thời gian vào đầu tháng tới", "boundIdx": 0, "expectedOutput":"10/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
+			,{"rawDatetime":"thời gian vào đầu tháng tư", "boundIdx": 0, "expectedOutput":"10/4/{0} 0:0:0".format(datetime.today().year)}
+			,{"rawDatetime":"thời gian vào giữa tháng chạp", "boundIdx": 0, "expectedOutput":"20/12/{0} 0:0:0".format(datetime.today().year)}
+			,{"rawDatetime":"thời gian vào đầu tháng chạp", "boundIdx": 0, "expectedOutput":"10/12/{0} 0:0:0".format(datetime.today().year)}
+			,{"rawDatetime":"thời gian vào cuối tháng trước", "boundIdx": 0, "expectedOutput":"30/{0}/{1} 0:0:0".format(int(datetime.today().month) - 1, datetime.today().year)}
+			,{"rawDatetime":"thời gian vào cuối tháng vừa qua", "boundIdx": 0, "expectedOutput":"30/{0}/{1} 0:0:0".format(int(datetime.today().month) - 1, datetime.today().year)}
 			,{"rawDatetime":"thời gian diễn ra vào đầu năm nay", "boundIdx": 0, "expectedOutput":"{0}/4/{1} 0:0:0".format(int(datetime.today().day), datetime.today().year)}
 			,{"rawDatetime":"thời gian diễn ra vào đầu năm ngoái", "boundIdx": 0, "expectedOutput":"{0}/4/{1} 0:0:0".format(int(datetime.today().day), int(datetime.today().year) - 1)}
 			,{"rawDatetime":"thời gian diễn ra vào đầu năm tới", "boundIdx": 0, "expectedOutput":"{0}/4/{1} 0:0:0".format(int(datetime.today().day), int(datetime.today().year) + 1)}
@@ -728,8 +774,8 @@ factory.test_catchAdvancePattern(
 			,{"rawDatetime":"thời gian vào cuối tuần sau", "boundIdx": 0, "expectedOutput":"24/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
 			,{"rawDatetime":"thời gian vào đầu tuần này", "boundIdx": 0, "expectedOutput":"12/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
 			,{"rawDatetime":"thời gian vào đầu tuần trước", "boundIdx": 0, "expectedOutput":"5/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
-			,{"rawDatetime":"thời gian vào 5 ngày tới", "boundIdx": 0, "expectedOutput":"17/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
-			,{"rawDatetime":"thời gian bắt đầu vào ngày mai", "boundIdx": 0, "expectedOutput":"13/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+			,{"rawDatetime":"thời gian vào 5 ngày tới", "boundIdx": 0, "expectedOutput":"18/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+			,{"rawDatetime":"thời gian bắt đầu vào ngày mai", "boundIdx": 0, "expectedOutput":"14/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
 			,{"rawDatetime":"thời gian bắt đầu vào thứ 5", "boundIdx": 0, "expectedOutput":"14/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
 			,{"rawDatetime":"thời gian bắt đầu vào thứ 5 tuần sau", "boundIdx": 0, "expectedOutput":"21/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
 			,{"rawDatetime":"thời gian bắt đầu vào thứ ba tuần trước", "boundIdx": 0, "expectedOutput":"5/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
@@ -749,8 +795,8 @@ factory.test_catchAdvancePattern(
 # 			,{"rawDatetime":"thời gian: 9h sáng 15/01", "expectedOutput":"15/1/2020 9:0:0"}
 # 			,{"rawDatetime":"thời gian: từ sáng thứ 4 lúc 9h30-10h30 ngày 24/12/2019 đến trưa sau 12h ngày 25/12/2019", "expectedOutput":"24/12/2019 9:30:0;25/12/2019 12:0:0"}
 # 			,{"rawDatetime":"cuối tháng 8 năm 2019", "expectedOutput":"9/8/2019 0:0:0"}
-# 			,{"rawDatetime":"lúc 9h30-10h30", "expectedOutput":"9/5/2020 9:30:0;9/5/2020 10:30:0"}
-# 			,{"rawDatetime":"lúc 9h30- 10h30", "expectedOutput":"9/5/2020 9:30:0;9/5/2020 10:30:0"}
+# 			,{"rawDatetime":"lúc 9h30-10h30", "expectedOutput":"13/5/2020 9:30:0;13/5/2020 10:30:0"}
+# 			,{"rawDatetime":"lúc 9h30- 10h30", "expectedOutput":"13/5/2020 9:30:0;13/5/2020 10:30:0"}
 # 			,{"rawDatetime":"lúc 9h30- 10h30 ngày 24/12/2019", "expectedOutput":"24/12/2019 9:30:0;24/12/2019 10:30:0"}
 # 			,{"rawDatetime":"trong 2 ngày 24-25/12/2019", "expectedOutput":"24/12/2019 0:0:0;25/12/2019 0:0:0"}
 # 			,{"rawDatetime":"từ ngày 24 đến 25/12/2019", "expectedOutput":"24/12/2019 0:0:0;25/12/2019 0:0:0"}
