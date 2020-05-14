@@ -199,7 +199,6 @@ advance_time_range = {
 
 separator_list = [
 # 1st priority
-	
 
 	"bắt đầu.*?({0}).*?kết thúc.*?({1})",
 	"khởi đầu.*?({0}).*?kết thúc.*?({1})",
@@ -230,12 +229,12 @@ class ActivityDateTime:
 		self.minute = minute
 		self.second = second
 		self.others = {
-			"day": {"is_default": True, "values": []},
-			"month": {"is_default": True, "values": []},
-			"year": {"is_default": True, "values": []},
-			"hour": {"is_default": True, "values": []},
-			"minute": {"is_default": True, "values": []},
-			"second": {"is_default": True, "values": []}
+			"day": {"priority": 0, "values": []},
+			"month": {"priority": 0, "values": []},
+			"year": {"priority": 0, "values": []},
+			"hour": {"priority": 0, "values": []},
+			"minute": {"priority": 0, "values": []},
+			"second": {"priority": 0, "values": []}
 		}
 	def __getitem__(self, key):
 		return self.__getattribute__(key)
@@ -248,8 +247,9 @@ class ActivityDateTime:
 	def convertToUnix(self):
 		dt = datetime(year=self.year, month=self.month, day=self.day, hour=self.hour, minute=self.minute, second=self.second)
 		return int(dt.replace(tzinfo=timezone.utc).timestamp())
-	def validAndSetDay(self, dayString):
-		if not self.others["day"]["is_default"]:
+	
+	def validAndSetDay(self, dayString, priority=2):
+		if priority <= self.others["day"]["priority"]:
 			self.others["day"]["values"].append(dayString)
 			
 			# print("\"{}\" archived".format(dayString))
@@ -257,11 +257,11 @@ class ActivityDateTime:
 		dayInt = int(dayString)
 		if 1 <= dayInt <= 31:
 			self.day = dayInt
-			self.others["day"]["is_default"] = False
+			self.others["day"]["priority"] = priority
 		else:
 			print(">>>>>>>>>>>ERR: invalid day!")
-	def validAndSetMonth(self, monthString):
-		if not self.others["month"]["is_default"]:
+	def validAndSetMonth(self, monthString, priority=2):
+		if priority <= self.others["month"]["priority"]:
 			self.others["month"]["values"].append(monthString)
 			
 
@@ -270,11 +270,11 @@ class ActivityDateTime:
 		monthInt = int(monthString)
 		if 1 <= monthInt <= 12:
 			self.month = monthInt
-			self.others["month"]["is_default"] = False
+			self.others["month"]["priority"] = priority
 		else:
 			print(">>>>>>>>>>>ERR: invalid month")
-	def validAndSetYear(self, yearString):
-		if not self.others["year"]["is_default"]:
+	def validAndSetYear(self, yearString, priority=2):
+		if priority <= self.others["year"]["priority"]:
 			self.others["year"]["values"].append(yearString)
 			
 
@@ -283,11 +283,11 @@ class ActivityDateTime:
 		yearInt = int(yearString)
 		if MINYEAR <= yearInt <= MAXYEAR:
 			self.year = yearInt
-			self.others["year"]["is_default"] = False
+			self.others["year"]["priority"] = priority
 		else:
 			print(">>>>>>>>>>>ERR: invalid year")
-	def validAndSetHour(self, hourString):
-		if not self.others["hour"]["is_default"]:
+	def validAndSetHour(self, hourString, priority=2):
+		if priority <= self.others["hour"]["priority"]:
 			self.others["hour"]["values"].append(hourString)
 			
 
@@ -296,11 +296,11 @@ class ActivityDateTime:
 		hourInt = int(hourString)
 		if 0 <= hourInt < 24:
 			self.hour = hourInt
-			self.others["hour"]["is_default"] = False
+			self.others["hour"]["priority"] = priority
 		else:
 			print(">>>>>>>>>>>ERR: invalid hour")
-	def validAndSetMinute(self, minuteString):
-		if not self.others["minute"]["is_default"]:
+	def validAndSetMinute(self, minuteString, priority=2):
+		if priority <= self.others["minute"]["priority"]:
 			self.others["minute"]["values"].append(minuteString)
 			
 
@@ -309,11 +309,11 @@ class ActivityDateTime:
 		minuteInt = int(minuteString)
 		if 0 <= minuteInt < 60:
 			self.minute = minuteInt
-			self.others["minute"]["is_default"] = False
+			self.others["minute"]["priority"] = priority
 		else:
 			print(">>>>>>>>>>>ERR: invalid minute")
-	def validAndSetSecond(self, secondString):
-		if not self.others["second"]["is_default"]:
+	def validAndSetSecond(self, secondString, priority=2):
+		if priority <= self.others["second"]["priority"]:
 			self.others["second"]["values"].append(secondString)
 			
 
@@ -322,7 +322,7 @@ class ActivityDateTime:
 		secondInt = int(secondString)
 		if 0 <= secondInt < 60:
 			self.second = secondInt
-			self.others["second"]["is_default"] = False
+			self.others["second"]["priority"] = priority
 		else:
 			print(">>>>>>>>>>>ERR: invalid second")
 
@@ -330,8 +330,8 @@ class ActivityDateTimeToUnixFactory:
 	def constraintTwoTimestamp(self, activityDateTime1, activityDateTime2):
 		#constraint day, month, year
 		for key in ["day", "month", "year"]:
-			if activityDateTime1.others[key]["is_default"] != activityDateTime2.others[key]["is_default"]:
-				if activityDateTime1.others[key]["is_default"]:
+			if activityDateTime1.others[key]["priority"] * activityDateTime2.others[key]["priority"] == 0:
+				if activityDateTime1.others[key]["priority"] == 0:
 					activityDateTime1[key] = activityDateTime2[key]
 				else:
 					activityDateTime2[key]= activityDateTime1[key]
@@ -355,6 +355,7 @@ class ActivityDateTimeToUnixFactory:
 		
 	def processRawDatetimeInput(self, rawDatetime):
 		rawValueSplitted = self.splitRawValues(rawDatetime)
+		print(rawValueSplitted)
 		if len(rawValueSplitted) > 1:
 			slot1 = self.processSingleDatetimeInput(rawValueSplitted[0], 0)
 			slot2 = self.processSingleDatetimeInput(rawValueSplitted[1], 1)
@@ -372,8 +373,10 @@ class ActivityDateTimeToUnixFactory:
 			# return unixFormat
 		else:
 			print("ERROR: cannot extract any value")
+			return []
+
 	def splitRawValues(self, rawDatetime):
-		date_time_pattern_joined = "(({0}).*)+".format("|".join([pattern for key in date_time_pattern for pattern in date_time_pattern[key]]))
+		date_time_pattern_joined = "(({0}).*)+".format("|".join([pattern for key in date_time_pattern for pattern in date_time_pattern[key]] + [pattern for key in advance_time for pattern in advance_time[key]]))
 		for separator in separator_list:
 			# date_time_pattern = single_date_regex_list + single_time_regex_list
 
@@ -383,8 +386,10 @@ class ActivityDateTimeToUnixFactory:
 			# print(separator_search_result)
 			if len(separator_search_result) > 0:
 				# print(full_pattern)
+				print(separator_search_result)
 
-				secondIdx = functools.reduce(lambda x,y: x + y, list(map(lambda x: len(x[0].split("_")) * len(x[1]), date_time_pattern.items())))
+				secondIdx = functools.reduce(lambda x,y: x + y, list(map(lambda x: (" ".join(x[1])).count('(') , {**date_time_pattern, **advance_time}.items())))
+				print(secondIdx)
 				# print(separator_search_result[0][0])
 				# print(separator_search_result[0][secondIdx + 3])
 				return [separator_search_result[0][0], separator_search_result[0][secondIdx + 3]]
@@ -392,9 +397,23 @@ class ActivityDateTimeToUnixFactory:
 		single_search_result = re.findall("({0})".format(date_time_pattern_joined), rawDatetime, re.IGNORECASE)
 		# print(single_search_result)
 		if len(single_search_result) > 0:
-			print("SINGLE DETECTED")
+			print("SINGLE DETECTED: {}".format(single_search_result))
 			return [single_search_result[0][0]]
 		else:
+			# print("Trying advance pattern...")
+			# advance_datetime_pattern_joined = "(({0}).*)+".format("|".join([pattern for key in advance_time for pattern in advance_time[key]]))
+			# for separator in separator_list:
+			# 	advance_datetime_full_pattern = separator.format(advance_datetime_pattern_joined, advance_datetime_pattern_joined)
+			# 	advance_datetime_full_result = re.findall(advance_datetime_full_pattern, rawDatetime, re.IGNORECASE)
+			# 	if len(advance_datetime_full_result) > 0:
+			# 		secondIdx = functools.reduce(lambda x,y: x + y, list(map(lambda x: len(x[1]) if "number" in x[0].split("_") else 0, advance_time.items())))
+			# 		# print("secondIdx: {}".format(secondIdx))
+			# 		print(advance_datetime_full_result)
+			# 		return [advance_datetime_full_result[0][0], advance_datetime_full_result[0][secondIdx + 3]]
+			# advance_datetime_single_result = re.findall("({0})".format(advance_datetime_pattern_joined), rawDatetime, re.IGNORECASE)
+			# if len(advance_datetime_single_result) > 0:
+			# 	print(advance_datetime_single_result)
+			# 	return [advance_datetime_single_result[0][0]]
 			return []		
 		
 
@@ -500,32 +519,32 @@ class ActivityDateTimeToUnixFactory:
 					if "month" in keyNameList:
 						if "next" in keyNameList:
 							if currentMonth + 1 < 13: 
-								activityDateTime.validAndSetMonth(currentMonth + 1) 
+								activityDateTime.validAndSetMonth(currentMonth + 1, priority=1) 
 							else: 
-								activityDateTime.validAndSetMonth(1)
+								activityDateTime.validAndSetMonth(1, priority=1)
 							
 						elif "previous" in keyNameList:
 							if currentMonth - 1 > 0: 
-								activityDateTime.validAndSetMonth(currentMonth - 1) 
+								activityDateTime.validAndSetMonth(currentMonth - 1, priority=1) 
 							else: 
-								activityDateTime.validAndSetMonth(12)
+								activityDateTime.validAndSetMonth(12, priority=1)
 						elif "number" in keyNameList and advance_result[0] in month_mapping.keys():
-							activityDateTime.validAndSetMonth(month_mapping[advance_result[0]])	
+							activityDateTime.validAndSetMonth(month_mapping[advance_result[0]], priority=1)	
 						
 						if keyNameList[0] == "end":
-							activityDateTime.validAndSetDay(advance_time_range["month"][keyNameList[0]][str(activityDateTime.month)][boundIdx])	
+							activityDateTime.validAndSetDay(advance_time_range["month"][keyNameList[0]][str(activityDateTime.month)][boundIdx], priority=1)	
 						else:
-							activityDateTime.validAndSetDay(advance_time_range["month"][keyNameList[0]][boundIdx])
+							activityDateTime.validAndSetDay(advance_time_range["month"][keyNameList[0]][boundIdx], priority=1)
 					elif "year" in keyNameList:
 						if "next" in keyNameList:
-							activityDateTime.validAndSetYear(currentYear + 1)
+							activityDateTime.validAndSetYear(currentYear + 1, priority=1)
 						elif "previous" in keyNameList:
-							activityDateTime.validAndSetYear(currentYear - 1)
+							activityDateTime.validAndSetYear(currentYear - 1, priority=1)
 						elif "number" in keyNameList:
-							activityDateTime.validAndSetYear(advance_result[0])
+							activityDateTime.validAndSetYear(advance_result[0], priority=1)
 
 
-						activityDateTime.validAndSetMonth(advance_time_range["year"][keyNameList[0]][boundIdx])
+						activityDateTime.validAndSetMonth(advance_time_range["year"][keyNameList[0]][boundIdx], priority=1)
 
 					elif "week" in keyNameList:
 						week = int(datetime.today().isocalendar()[1]) - 1
@@ -536,11 +555,11 @@ class ActivityDateTimeToUnixFactory:
 
 						dayOfWeek = 1
 						newDate = datetime.strptime("{0}-W{1}-{2}".format(currentYear, week, dayOfWeek + advance_time_range["week"][keyNameList[0]][boundIdx]),"%Y-W%W-%w")
-						activityDateTime.validAndSetDay(newDate.day)
+						activityDateTime.validAndSetDay(newDate.day, priority=1)
 						if int(newDate.month) != currentMonth:
-							activityDateTime.validAndSetMonth(newDate.month)
+							activityDateTime.validAndSetMonth(newDate.month, priority=1)
 						if int(newDate.year) != currentYear:
-							activityDateTime.validAndSetYear(newDate.year)
+							activityDateTime.validAndSetYear(newDate.year, priority=1)
 					elif "day" in keyNameList:
 						numOfDays = 1
 						newDate = currentDatetime
@@ -556,11 +575,11 @@ class ActivityDateTimeToUnixFactory:
 						elif "previous" in keyNameList:
 							newDate = newDate - timedelta(days=numOfDays)
 
-						activityDateTime.validAndSetDay(newDate.day)
+						activityDateTime.validAndSetDay(newDate.day, priority=1)
 						if int(newDate.month) != currentMonth:
-							activityDateTime.validAndSetMonth(newDate.month)
+							activityDateTime.validAndSetMonth(newDate.month, priority=1)
 						if int(newDate.year) != currentYear:
-							activityDateTime.validAndSetYear(newDate.currentYear)
+							activityDateTime.validAndSetYear(newDate.currentYear, priority=1)
 
 
 				# if "next" in keyNameList:
@@ -751,39 +770,45 @@ factory = ActivityDateTimeToUnixFactory()
 
 # 	])
 
-factory.test_catchAdvancePattern(
-	[
-			{"rawDatetime":"thời gian vào cuối tháng này", "boundIdx": 0, "expectedOutput":"31/{0}/{1} 0:0:0".format(datetime.today().month, datetime.today().year)}
-			,{"rawDatetime":"thời gian vào cuối tháng tới", "boundIdx": 0, "expectedOutput":"30/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
-			,{"rawDatetime":"thời gian vào cuối tháng tới", "boundIdx": 1, "expectedOutput":"21/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
-			,{"rawDatetime":"thời gian vào cuối tháng tới", "boundIdx": 2, "expectedOutput":"25/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
-			,{"rawDatetime":"thời gian vào cuối tháng 2", "boundIdx": 0, "expectedOutput":"29/2/{0} 0:0:0".format(datetime.today().year)}
-			,{"rawDatetime":"thời gian vào đầu tháng tới", "boundIdx": 0, "expectedOutput":"10/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
-			,{"rawDatetime":"thời gian vào đầu tháng tư", "boundIdx": 0, "expectedOutput":"10/4/{0} 0:0:0".format(datetime.today().year)}
-			,{"rawDatetime":"thời gian vào giữa tháng chạp", "boundIdx": 0, "expectedOutput":"20/12/{0} 0:0:0".format(datetime.today().year)}
-			,{"rawDatetime":"thời gian vào đầu tháng chạp", "boundIdx": 0, "expectedOutput":"10/12/{0} 0:0:0".format(datetime.today().year)}
-			,{"rawDatetime":"thời gian vào cuối tháng trước", "boundIdx": 0, "expectedOutput":"30/{0}/{1} 0:0:0".format(int(datetime.today().month) - 1, datetime.today().year)}
-			,{"rawDatetime":"thời gian vào cuối tháng vừa qua", "boundIdx": 0, "expectedOutput":"30/{0}/{1} 0:0:0".format(int(datetime.today().month) - 1, datetime.today().year)}
-			,{"rawDatetime":"thời gian diễn ra vào đầu năm nay", "boundIdx": 0, "expectedOutput":"{0}/4/{1} 0:0:0".format(int(datetime.today().day), datetime.today().year)}
-			,{"rawDatetime":"thời gian diễn ra vào đầu năm ngoái", "boundIdx": 0, "expectedOutput":"{0}/4/{1} 0:0:0".format(int(datetime.today().day), int(datetime.today().year) - 1)}
-			,{"rawDatetime":"thời gian diễn ra vào đầu năm tới", "boundIdx": 0, "expectedOutput":"{0}/4/{1} 0:0:0".format(int(datetime.today().day), int(datetime.today().year) + 1)}
-			,{"rawDatetime":"thời gian diễn ra vào đầu năm tới", "boundIdx": 1, "expectedOutput":"{0}/1/{1} 0:0:0".format(int(datetime.today().day), int(datetime.today().year) + 1)}
-			,{"rawDatetime":"thời gian diễn ra vào giữa năm tới", "boundIdx": 1, "expectedOutput":"{0}/5/{1} 0:0:0".format(int(datetime.today().day), int(datetime.today().year) + 1)}
-			,{"rawDatetime":"thời gian vào đầu tuần sau", "boundIdx": 0, "expectedOutput":"19/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
-			,{"rawDatetime":"thời gian vào đầu tuần sau", "boundIdx": 1, "expectedOutput":"18/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
-			,{"rawDatetime":"thời gian vào cuối tuần sau", "boundIdx": 0, "expectedOutput":"24/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
-			,{"rawDatetime":"thời gian vào đầu tuần này", "boundIdx": 0, "expectedOutput":"12/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
-			,{"rawDatetime":"thời gian vào đầu tuần trước", "boundIdx": 0, "expectedOutput":"5/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
-			,{"rawDatetime":"thời gian vào 5 ngày tới", "boundIdx": 0, "expectedOutput":"18/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
-			,{"rawDatetime":"thời gian bắt đầu vào ngày mai", "boundIdx": 0, "expectedOutput":"14/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
-			,{"rawDatetime":"thời gian bắt đầu vào thứ 5", "boundIdx": 0, "expectedOutput":"14/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
-			,{"rawDatetime":"thời gian bắt đầu vào thứ 5 tuần sau", "boundIdx": 0, "expectedOutput":"21/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
-			,{"rawDatetime":"thời gian bắt đầu vào thứ ba tuần trước", "boundIdx": 0, "expectedOutput":"5/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
-			,{"rawDatetime":"thời gian bắt đầu vào chủ nhật tuần này", "boundIdx": 0, "expectedOutput":"17/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
-			,{"rawDatetime":"thời gian bắt đầu vào thứ 5 tuần kế nhé", "boundIdx": 0, "expectedOutput":"21/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+# factory.test_catchAdvancePattern(
+# 	[
+# 			{"rawDatetime":"thời gian vào cuối tháng này", "boundIdx": 0, "expectedOutput":"31/{0}/{1} 0:0:0".format(datetime.today().month, datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào cuối tháng tới", "boundIdx": 0, "expectedOutput":"30/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào cuối tháng tới", "boundIdx": 1, "expectedOutput":"21/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào cuối tháng tới", "boundIdx": 2, "expectedOutput":"25/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào cuối tháng 2", "boundIdx": 0, "expectedOutput":"29/2/{0} 0:0:0".format(datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào đầu tháng tới", "boundIdx": 0, "expectedOutput":"10/{0}/{1} 0:0:0".format(int(datetime.today().month) + 1, datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào đầu tháng tư", "boundIdx": 0, "expectedOutput":"10/4/{0} 0:0:0".format(datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào giữa tháng chạp", "boundIdx": 0, "expectedOutput":"20/12/{0} 0:0:0".format(datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào đầu tháng chạp", "boundIdx": 0, "expectedOutput":"10/12/{0} 0:0:0".format(datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào cuối tháng trước", "boundIdx": 0, "expectedOutput":"30/{0}/{1} 0:0:0".format(int(datetime.today().month) - 1, datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào cuối tháng vừa qua", "boundIdx": 0, "expectedOutput":"30/{0}/{1} 0:0:0".format(int(datetime.today().month) - 1, datetime.today().year)}
+# 			,{"rawDatetime":"thời gian diễn ra vào đầu năm nay", "boundIdx": 0, "expectedOutput":"{0}/4/{1} 0:0:0".format(int(datetime.today().day), datetime.today().year)}
+# 			,{"rawDatetime":"thời gian diễn ra vào đầu năm ngoái", "boundIdx": 0, "expectedOutput":"{0}/4/{1} 0:0:0".format(int(datetime.today().day), int(datetime.today().year) - 1)}
+# 			,{"rawDatetime":"thời gian diễn ra vào đầu năm tới", "boundIdx": 0, "expectedOutput":"{0}/4/{1} 0:0:0".format(int(datetime.today().day), int(datetime.today().year) + 1)}
+# 			,{"rawDatetime":"thời gian diễn ra vào đầu năm tới", "boundIdx": 1, "expectedOutput":"{0}/1/{1} 0:0:0".format(int(datetime.today().day), int(datetime.today().year) + 1)}
+# 			,{"rawDatetime":"thời gian diễn ra vào giữa năm tới", "boundIdx": 1, "expectedOutput":"{0}/5/{1} 0:0:0".format(int(datetime.today().day), int(datetime.today().year) + 1)}
+# 			,{"rawDatetime":"thời gian vào đầu tuần sau", "boundIdx": 0, "expectedOutput":"19/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào đầu tuần sau", "boundIdx": 1, "expectedOutput":"18/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào cuối tuần sau", "boundIdx": 0, "expectedOutput":"24/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào đầu tuần này", "boundIdx": 0, "expectedOutput":"12/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào đầu tuần trước", "boundIdx": 0, "expectedOutput":"5/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+# 			,{"rawDatetime":"thời gian vào 5 ngày tới", "boundIdx": 0, "expectedOutput":"18/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+# 			,{"rawDatetime":"thời gian bắt đầu vào ngày mai", "boundIdx": 0, "expectedOutput":"14/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+# 			,{"rawDatetime":"thời gian bắt đầu vào thứ 5", "boundIdx": 0, "expectedOutput":"14/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+# 			,{"rawDatetime":"thời gian bắt đầu vào thứ 5 tuần sau", "boundIdx": 0, "expectedOutput":"21/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+# 			,{"rawDatetime":"thời gian bắt đầu vào thứ ba tuần trước", "boundIdx": 0, "expectedOutput":"5/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+# 			,{"rawDatetime":"thời gian bắt đầu vào chủ nhật tuần này", "boundIdx": 0, "expectedOutput":"17/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
+# 			,{"rawDatetime":"thời gian bắt đầu vào thứ 5 tuần kế nhé", "boundIdx": 0, "expectedOutput":"21/{0}/{1} 0:0:0".format(int(datetime.today().month), datetime.today().year)}
 
-	]
-)
+# 	]
+# )
+
+result = factory.processRawDatetimeInput("thời gian bắt đầu từ thứ 5 tuần kế nhé")
+# result = factory.processRawDatetimeInput("thời gian bắt đầu từ thứ 5 đến thứ 6 tuần kế nhé")
+
+time = [obj.extractAllValue() for obj in result]
+print(time)
 
 # factory.test_processRawDatetimeInput(
 # 	[
@@ -794,9 +819,9 @@ factory.test_catchAdvancePattern(
 # 			,{"rawDatetime":"thời gian: bắt đầu từ 9h30-10h30 ngày 24/12/2019 và sau đó kết thúc vào 16h ngày 25/12/2019", "expectedOutput":"24/12/2019 9:30:0;25/12/2019 16:0:0"}
 # 			,{"rawDatetime":"thời gian: 9h sáng 15/01", "expectedOutput":"15/1/2020 9:0:0"}
 # 			,{"rawDatetime":"thời gian: từ sáng thứ 4 lúc 9h30-10h30 ngày 24/12/2019 đến trưa sau 12h ngày 25/12/2019", "expectedOutput":"24/12/2019 9:30:0;25/12/2019 12:0:0"}
-# 			,{"rawDatetime":"cuối tháng 8 năm 2019", "expectedOutput":"9/8/2019 0:0:0"}
-# 			,{"rawDatetime":"lúc 9h30-10h30", "expectedOutput":"13/5/2020 9:30:0;13/5/2020 10:30:0"}
-# 			,{"rawDatetime":"lúc 9h30- 10h30", "expectedOutput":"13/5/2020 9:30:0;13/5/2020 10:30:0"}
+# 			,{"rawDatetime":"cuối tháng 8 năm 2019", "expectedOutput":"26/8/2019 0:0:0"}
+# 			,{"rawDatetime":"lúc 9h30-10h30", "expectedOutput":"14/5/2020 9:30:0;14/5/2020 10:30:0"}
+# 			,{"rawDatetime":"lúc 9h30- 10h30", "expectedOutput":"14/5/2020 9:30:0;14/5/2020 10:30:0"}
 # 			,{"rawDatetime":"lúc 9h30- 10h30 ngày 24/12/2019", "expectedOutput":"24/12/2019 9:30:0;24/12/2019 10:30:0"}
 # 			,{"rawDatetime":"trong 2 ngày 24-25/12/2019", "expectedOutput":"24/12/2019 0:0:0;25/12/2019 0:0:0"}
 # 			,{"rawDatetime":"từ ngày 24 đến 25/12/2019", "expectedOutput":"24/12/2019 0:0:0;25/12/2019 0:0:0"}
@@ -806,5 +831,6 @@ factory.test_catchAdvancePattern(
 
 
 # 	])
+
 
 # TODO: pattern "cuối ... ", split by "-"
